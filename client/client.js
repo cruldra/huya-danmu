@@ -2,7 +2,7 @@ const ws = require('ws');
 const md5 = require('md5');
 const events = require('events');
 const to_arraybuffer = require('to-arraybuffer');
-const { Taf, TafMx, HUYA, List } = require('../util/lib');
+const {Taf, TafMx, HUYA, List} = require('../util/lib');
 const log = require('../util/log4jsUtil');
 const timeout = 300 * 1000;
 const ping_interval = 30 * 1000;
@@ -10,9 +10,14 @@ const heartbeat_interval = 60 * 1000;
 const fresh_gift_interval = 5 * 60 * 1000;
 
 const request = require('request-promise');
-const r = request.defaults({ json: true, gzip: true, timeout: 30 * 1000, headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 5.1.1; Nexus 6 Build/LYZ28E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.84 Mobile Safari/537.36' } });
+const r = request.defaults({
+    json: true,
+    gzip: true,
+    timeout: 30 * 1000,
+    headers: {'User-Agent': 'Mozilla/5.0 (Linux; Android 5.1.1; Nexus 6 Build/LYZ28E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.84 Mobile Safari/537.36'}
+});
 
-class client extends events{
+class client extends events {
     constructor() {
         super();
         this.isRun = true;
@@ -31,36 +36,36 @@ class client extends events{
         this._emitter = new events.EventEmitter()
     }
 
-    exit(){
+    exit() {
         this.isRun = false;
         this.isLogin = false;
-        if(this._client){
+        if (this._client) {
             this._client.close();
         }
     }
 
-    loginSuccess(){
-        log.info(this.getInfo()+"登录成功");
+    loginSuccess() {
+        log.info(this.getInfo() + "登录成功");
     }
 
     getInfo() {
-        let info = this.clientName+";平台="+this.platform_id+";房间="+this.room_id+";";
-        if(this.nickname){
-            info += "账号="+this.nickname+";";
+        let info = this.clientName + ";平台=" + this.platform_id + ";房间=" + this.room_id + ";";
+        if (this.nickname) {
+            info += "账号=" + this.nickname + ";";
         }
         return info;
     }
 
-    loginFail(){
-        log.info(this.getInfo()+"登录失败");
+    loginFail() {
+        log.info(this.getInfo() + "登录失败");
     }
 
-    async start(){
+    async start() {
         if (this._starting) return
         this._starting = true
         this._info = await this._get_chat_info()
-        if (!this._info){
-            log.info(this.getInfo()+"房间不存在");
+        if (!this._info) {
+            log.info(this.getInfo() + "房间不存在");
             this.emit('close');
             return;
         }
@@ -77,11 +82,11 @@ class client extends events{
             handshakeTimeout: timeout
         });
         this._client.on('open', () => {
-            if(this.clientName == "接收线程"){
+            if (this.clientName == "接收线程") {
                 this._get_gift_list();
                 this._get_chat_list();
                 this._fresh_gift_list_timer = setInterval(this._get_gift_list.bind(this), fresh_gift_interval)
-            }else{
+            } else {
                 this._login();
             }
             this.sendPingReq();
@@ -89,14 +94,14 @@ class client extends events{
             this._connect()
         })
         this._client.on('error', err => {
-            log.error(this.getInfo()+"房间出错", err)
+            log.error(this.getInfo() + "房间出错", err)
             // this.emit('error', err)
         })
         this._client.on('close', async () => {
-            if(this.isRun){
-                log.info(this.getInfo()+"线程非正常关闭");
-            }else{
-                log.info(this.getInfo()+"线程关闭");
+            if (this.isRun) {
+                log.info(this.getInfo() + "线程非正常关闭");
+            } else {
+                log.info(this.getInfo() + "线程关闭");
             }
             this.isRun = false;
             this.isLogin = false;
@@ -115,9 +120,9 @@ class client extends events{
         //弹幕
         this._emitter.on("1400", msg => {
             let nl = 0;
-            if(msg.vDecorationPrefix && msg.vDecorationPrefix.value){
-                for(let item of msg.vDecorationPrefix.value){
-                    if(item.iAppId == "10200"){
+            if (msg.vDecorationPrefix && msg.vDecorationPrefix.value) {
+                for (let item of msg.vDecorationPrefix.value) {
+                    if (item.iAppId == "10200") {
                         let nobleBase = new HUYA.NobleBase();
                         nobleBase.readFrom(new Taf.JceInputStream(item.vData.buffer));
                         nl = nobleBase.iLevel;
@@ -129,8 +134,8 @@ class client extends events{
                 id: id,
                 type: 'chatmsg',
                 room_id: self.room_id,
-                timestamp: new Date().getTime()+"",
-                uid: msg.tUserInfo.lUid+"",
+                timestamp: new Date().getTime() + "",
+                uid: msg.tUserInfo.lUid + "",
                 nn: msg.tUserInfo.sNickName,
                 ic: msg.tUserInfo.ic,
                 nl: nl,
@@ -142,14 +147,14 @@ class client extends events{
         this._emitter.on("6501", msg => {
             // if (msg.lPresenterUid != this._info.yyuid) return
             let gift = this._gift_info[msg.iItemType + ''];
-            if(!gift){
-                log.error("不识别的礼物"+JSON.stringify(msg));
+            if (!gift) {
+                log.error("不识别的礼物" + JSON.stringify(msg));
                 return;
             }
             let nl = 0;
-            if(msg.vDecorationPrefix && msg.vDecorationPrefix.value){
-                for(let item of msg.vDecorationPrefix.value){
-                    if(item.iAppId == "10200"){
+            if (msg.vDecorationPrefix && msg.vDecorationPrefix.value) {
+                for (let item of msg.vDecorationPrefix.value) {
+                    if (item.iAppId == "10200") {
                         let nobleBase = new HUYA.NobleBase();
                         nobleBase.readFrom(new Taf.JceInputStream(item.vData.buffer));
                         nl = nobleBase.iLevel;
@@ -161,8 +166,8 @@ class client extends events{
                 id: id,
                 type: 'dgb',
                 room_id: self.room_id,
-                timestamp: new Date().getTime()+"",
-                uid: msg.lSenderUid+"",
+                timestamp: new Date().getTime() + "",
+                uid: msg.lSenderUid + "",
                 nn: msg.sSenderNick,
                 ic: msg.iSenderIcon,
                 nl: nl,
@@ -182,8 +187,8 @@ class client extends events{
                 id: id,
                 type: 'enter',
                 room_id: self.room_id,
-                timestamp: new Date().getTime()+"",
-                uid: msg.lUid+"",
+                timestamp: new Date().getTime() + "",
+                uid: msg.lUid + "",
                 nn: msg.sNickName,
                 ic: msg.sLogoURL,
                 nl: msg.tNobleInfo.iNobleLevel,
@@ -193,31 +198,31 @@ class client extends events{
         });
         //贵宾变化
         this._emitter.on("6210", msg => {
-            if(msg.iCount === msg.iTotal
+            if (msg.iCount === msg.iTotal
                 && msg.iCount === msg.vVipBarItem.value.length
                 && msg.vVipBarItem.value.length > 0
                 && this.bar_list.length > 0
-                && this.bar_list.length <= 100){
+                && this.bar_list.length <= 100) {
                 //没有分页的贵宾数据，进行对比
-                for(let i of msg.vVipBarItem.value){
-                    if(i.tNobleInfo.iNobleLevel != 0){
+                for (let i of msg.vVipBarItem.value) {
+                    if (i.tNobleInfo.iNobleLevel != 0) {
                         continue;
                     }
                     let flag = true;
-                    for(let j of this.bar_list){
-                        if(i.lUid === j.lUid){
+                    for (let j of this.bar_list) {
+                        if (i.lUid === j.lUid) {
                             flag = false;
                             break;
                         }
                     }
-                    if(flag){
+                    if (flag) {
                         let id = md5(JSON.stringify(msg));
                         let msg_obj = {
                             id: id,
                             type: 'enter',
                             room_id: self.room_id,
-                            timestamp: new Date().getTime()+"",
-                            uid: i.lUid+"",
+                            timestamp: new Date().getTime() + "",
+                            uid: i.lUid + "",
                             nn: i.sNickName,
                             ic: i.sLogo,
                             nl: i.tNobleInfo.iNobleLevel,
@@ -234,13 +239,13 @@ class client extends events{
             msg.vPropsItemList.value.forEach(item => {
                 let icon = "";
                 let name = item.sPropsName;
-                try{
+                try {
                     icon = item.vPropsIdentity.value[0].sPropsWeb.split("&")[0];
-                }catch (e) {
+                } catch (e) {
                 }
-                try{
+                try {
                     name = item.vPropView.value[0].name;
-                }catch (e) {
+                } catch (e) {
                 }
                 this._gift_info[item.iPropsId + ''] = {
                     name: item.vPropView.value[0].name,
@@ -280,7 +285,7 @@ class client extends events{
         this._client.send(e.getBuffer())
     }
 
-    _login(){
+    _login() {
         let t = new HUYA.WSVerifyCookieReq;
         t.lUid = parseInt(this._get_cookie_value("yyuid")),
             t.sUA = "webh5&2004231432&websocket",
@@ -314,9 +319,10 @@ class client extends events{
             info.yyuid = parseInt(yyuid_array[1]);
             info.sGuid = "";
             info.anthor_nick = anthor_nick[1] === '' ? '' : anthor_nick[1];
+            log.info("房间信息:" + JSON.stringify(info))
             return info
         } catch (e) {
-            log.error(this.getInfo()+"获取房间基本信息异常", e);
+            log.error(this.getInfo() + "获取房间基本信息异常", e);
         }
     }
 
@@ -328,13 +334,13 @@ class client extends events{
             command.readFrom(stream);
             switch (command.iCmdType) {
                 case HUYA.EWebSocketCommandType.EWSCmd_WupRsp:
-                    try{
+                    try {
                         let wup = new Taf.Wup()
                         wup.decode(command.vData.buffer)
                         let map = new (TafMx.WupMapping[wup.sFuncName])()
                         wup.readStruct('tRsp', map, TafMx.WupMapping[wup.sFuncName])
                         this._emitter.emit(wup.sFuncName, map)
-                    }catch (e) {
+                    } catch (e) {
                         log.error("返回方法处理异常", e)
                     }
                     break
@@ -354,13 +360,13 @@ class client extends events{
                     let g = new HUYA.WSVerifyCookieRsp;
                     g.readFrom(stream);
                     this.isLogin = g.iValidate == 0;
-                    if(this.isLogin){
-                        log.info(this.getInfo()+"登录成功");
+                    if (this.isLogin) {
+                        log.info(this.getInfo() + "登录成功");
                         this.emit("loginSuccess");
                         this._heartbeat();
                         this._heartbeat_timer = setInterval(this._heartbeat.bind(this), heartbeat_interval)
-                    }else{
-                        log.info(this.getInfo()+"登录失败");
+                    } else {
+                        log.info(this.getInfo() + "登录失败");
                         this.emit("loginFail");
                         this.isRun = false;
                         this.exit();
@@ -375,7 +381,7 @@ class client extends events{
     }
 
     _heartbeat() {
-        if(!this.isRun){
+        if (!this.isRun) {
             this.exit();
             return;
         }
@@ -413,7 +419,7 @@ class client extends events{
         }
     }
 
-    _connect(){
+    _connect() {
     }
 
     _stop() {
@@ -425,7 +431,7 @@ class client extends events{
         this._client && this._client.terminate()
     }
 
-    getUserId(){
+    getUserId() {
         let userId = new HUYA.UserId();
         userId.lUid = parseInt(this._get_cookie_value("yyuid")),
             userId.sGuid = this._info.sGuid,
@@ -436,7 +442,7 @@ class client extends events{
         return userId;
     }
 
-    sendMsg(content){
+    sendMsg(content) {
         var n = new HUYA.SendMessageReq;
         if (n.tUserId = this.getUserId(),
             n.lTid = this._info.yyuid,
@@ -461,22 +467,22 @@ class client extends events{
         this._client.send(stream.getBuffer())
     }
 
-    _get_cookie_value(name){
-        for(let item of this.cookies){
-            if(item.name == name){
+    _get_cookie_value(name) {
+        for (let item of this.cookies) {
+            if (item.name == name) {
                 return item.value.trim();
             }
         }
         return '';
     }
 
-    _cookie_convert(){
+    _cookie_convert() {
         let cookieStr = "";
-        for(let item of this.cookies){
-            if(!item.name || !item.value || item.name == 'undefined' || item.value == 'undefined'){
+        for (let item of this.cookies) {
+            if (!item.name || !item.value || item.name == 'undefined' || item.value == 'undefined') {
                 continue;
             }
-            if(cookieStr){
+            if (cookieStr) {
                 cookieStr += "; "
             }
             cookieStr += item.name + "=" + item.value.trim();
@@ -493,13 +499,13 @@ class client extends events{
     }
 
     sendPingReq() {
-        if(!this.isRun){
+        if (!this.isRun) {
             this.exit();
             return;
         }
         let currTime = Date.now();
-        if(currTime - this.startTime > 30*1000 && !this.isLogin){
-            log.info(this.getInfo()+"登录超时");
+        if (currTime - this.startTime > 30 * 1000 && !this.isLogin) {
+            log.info(this.getInfo() + "登录超时");
             this.exit();
             return;
         }
@@ -519,7 +525,7 @@ class client extends events{
         r = md5(r),
             i.sSgin = r,
             console.log(i);
-            this._send_wup("sequenceui", "getSequence", i)
+        this._send_wup("sequenceui", "getSequence", i)
     }
 
     consumeGift(sPayId, iItemType, iItemCount) {
@@ -527,19 +533,19 @@ class client extends events{
         l = l.replace("{0}", 0);//e.nobleInfo ? e.nobleInfo.iNobleLevel : 0
         var f = new HUYA.ConsumeGiftReq;
         f.lSid = this._info.topsid,
-        f.lSubSid = this._info.subsid,
-        f.sSenderNick = this.nickname,
-        f.sPresenterNick = this._info.anthor_nick,
-        f.tId = this.getUserId(),
-        f.tId.sToken = this._get_cookie_value("udb_n"),
-        f.tId.iTokenType = 3,
-        f.iShowFreeitemInfo = 0,
-        f.iItemType = iItemType,
-        f.iItemCount = iItemCount,
-        f.lPresenterUid = this._info.yyuid,
-        f.sPayId = sPayId;
+            f.lSubSid = this._info.subsid,
+            f.sSenderNick = this.nickname,
+            f.sPresenterNick = this._info.anthor_nick,
+            f.tId = this.getUserId(),
+            f.tId.sToken = this._get_cookie_value("udb_n"),
+            f.tId.iTokenType = 3,
+            f.iShowFreeitemInfo = 0,
+            f.iItemType = iItemType,
+            f.iItemCount = iItemCount,
+            f.lPresenterUid = this._info.yyuid,
+            f.sPayId = sPayId;
         f.sSendContent = "";
-        var w = function() {
+        var w = function () {
             var t = "1111";
             t || (t = "1111");
             var e = t.split("")
@@ -559,7 +565,7 @@ class client extends events{
             f.iEventType = 0;
         var I = "";
         f.sSign = md5(f.tId.lUid + f.lSid + f.lSubSid + f.iShowFreeitemInfo + f.iItemType + f.iItemCount + f.lPresenterUid + f.sPayId + f.iPayPloy + f.iFromType + f.iTemplateType + f.sPassport + f.iEventType + I),
-        f.iUseType = 0;
+            f.iUseType = 0;
         log.info(f);
         this._send_wup("PropsUIServer", "consumeGift", f)
     }
